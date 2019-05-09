@@ -123,6 +123,5 @@ button.copy, button.delete {
 }
 
 select:disabled {
-  background: #ddd;
-  color: #444;
+  opacity: 0.4;
 }

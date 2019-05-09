@@ -17,7 +17,6 @@ function Voc(imiv) {
       });
     });
   });
-  console.log(this.data);
 }
 
 Voc.prototype = {
@@ -135,15 +134,23 @@ $(function() {
 
 fetch("https://imi.go.jp/ns/core/242/imicore242.imiv").then(a => a.text()).then(imiv => {
   var voc = new Voc(imiv);
-
+  voc.data.filter(a => a.type === "vocabulary").forEach(a => {
+    var name = a.metadata.find(b => b.type === "name" && b.language === undefined);
+    var version = a.metadata.find(b => b.type === "version");
+    $("#voc").text(name.data + " ver." + version.data);
+  });
   // クラスツリーの構築
   (function() {
     var dig = function(def, depth) {
+      var desc = "説明がありません";
+      def.metadata.forEach(a => {
+        if (a.type === "description" && a.language === undefined) desc = a.data;
+      });
       var c = voc.data.filter(a => a.type === "set" && a.class.pn === def.pn);
       var li = $("<li/>", {
         "class": "depth" + depth,
         "data-type": def.pn
-      }).append($("<a href='#'/>").text(def.name + "(" + c.length + ")")).appendTo("#classes ul");
+      }).append($("<a href='#'/>").attr("title", desc).text(def.name)).appendTo("#classes ul");
       voc.children(def.pn).forEach(a => {
         dig(a, depth + 1);
       });
@@ -173,7 +180,7 @@ fetch("https://imi.go.jp/ns/core/242/imicore242.imiv").then(a => a.text()).then(
     var li = $(this).parent("li");
     var a = li.clone()
     li.after(a);
-    a.find("button.copy").removeClass("copy").addClass("delete").text("x");
+    a.find("button.copy").removeClass("copy").addClass("delete").attr("title", "このプロパティを削除することができます").text("x");
     update();
     return false;
   });
@@ -197,11 +204,16 @@ fetch("https://imi.go.jp/ns/core/242/imicore242.imiv").then(a => a.text()).then(
     var ul = $(this).parent().children("ul").empty();
 
     // リソース URI
-    ul.append("<li class='literal' data-property='@id' data-fill='{{xsd:anyURI}}'><label><input type='checkbox'/>@id</label></li>");
+    ul.append("<li class='literal' data-property='@id' data-fill='{{xsd:anyURI}}'><label><input type='checkbox' title='このプロパティを使用するにはチェックします'/><span title='このリソースを一意に特定するための URI'>@id</span></label></li>");
 
     // プロパティ
     voc.prop(pn).forEach(a => {
       var p = voc.find(a.property.pn);
+      var desc = "説明がありません";
+      p.metadata.forEach(a => {
+        if (a.type === "description" && a.language === undefined) desc = a.data;
+      });
+
       if (p.res.type.pn !== "ic:電話番号型" && voc.find(p.res.type.pn) !== undefined) {
         var sel = $("<select/>");
         var dig = function(x, prefix) {
@@ -217,15 +229,17 @@ fetch("https://imi.go.jp/ns/core/242/imicore242.imiv").then(a => a.text()).then(
           "data-property": p.pn,
           "data-type": p.res.type.pn
         });
-        li.append($("<a href='#'/>").text(p.name));
+        li.append($("<a href='#'/>").attr("title", desc).text(p.name));
 
         if (a.res.cardinality === undefined || a.res.cardinality.max !== 1) {
-          li.append($("<button class='copy'>+</button>"));
+          li.append($("<button class='copy' title='このプロパティは増やすことができます'>+</button>"));
         }
 
         //        if (sel.children("option").length > 0) li.append(sel);
         if (sel.children("option").length === 1)
-          sel.attr("disabled", "disabled");
+          sel.attr("disabled", "disabled").attr("title", "より具体的なクラスの選択肢はありません");
+        else
+          sel.attr("title", "より具体的なクラスを選択することが可能です");
         li.append(sel);
 
         li.append($("<ul/>"));
@@ -233,10 +247,10 @@ fetch("https://imi.go.jp/ns/core/242/imicore242.imiv").then(a => a.text()).then(
       } else {
         var li = $("<li class='literal' data-property='" + p.pn + "' data-fill='{{" + p.res.type.pn + "}}'/>").appendTo(ul);
         var label = $("<label/>").appendTo(li);
-        label.append($("<input type='checkbox'/>"));
-        label.append($("<b/>").text(p.name));
+        label.append($("<input type='checkbox' title='このプロパティを使用するにはチェックします'/>"));
+        label.append($("<b/>").attr("title", desc + "(" + p.res.type.pn + ")").text(p.name));
         if (a.res.cardinality === undefined || a.res.cardinality.max !== 1) {
-          li.append($("<button class='copy'>+</button>"));
+          li.append($("<button class='copy' title='このプロパティは増やすことができます'>+</button>"));
         }
       }
     });
